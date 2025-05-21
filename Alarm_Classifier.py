@@ -49,18 +49,35 @@ if uploaded_file:
 st.markdown("---")
 st.header("Classify live audio from your microphone")
 
+# Initialize audio buffer in session state
+if "audio_buffer" not in st.session_state:
+    st.session_state["audio_buffer"] = np.zeros(0, dtype=np.float32)
+
+# Target duration for classification in seconds
+BUFFER_DURATION = 2.0  # you can adjust this (e.g. 1.5 or 3.0)
+
 def audio_callback(frame: av.AudioFrame):
     audio = frame.to_ndarray(format="flt32")
     if audio.ndim > 1:
         audio = audio.mean(axis=0)  # stereo to mono
     sr = frame.sample_rate
 
-    features = extract_features(audio, sr).reshape(1, -1)
-    if features.shape[1] == model.n_features_in_:
-        pred = model.predict(features)[0]
-        st.session_state["live_prediction"] = pred
-    else:
-        st.session_state["live_prediction"] = "Feature size mismatch"
+    # Append incoming audio to buffer
+    st.session_state.audio_buffer = np.concatenate([st.session_state.audio_buffer, audio])
+
+    # If we have enough audio accumulated, process it
+    if len(st.session_state.audio_buffer) >= int(sr * BUFFER_DURATION):
+        audio_chunk = st.session_state.audio_buffer[-int(sr * BUFFER_DURATION):]
+
+        features = extract_features(audio_chunk, sr).reshape(1, -1)
+        if features.shape[1] == model.n_features_in_:
+            pred = model.predict(features)[0]
+            st.session_state["live_prediction"] = pred
+        else:
+            st.session_state["live_prediction"] = "Feature size mismatch"
+
+        # Clear buffer after prediction to avoid reprocessing same audio
+        st.session_state.audio_buffer = np.zeros(0, dtype=np.float32)
 
     return frame
 

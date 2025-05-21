@@ -47,7 +47,7 @@ if uploaded_file:
         st.error("Feature size mismatch.")
 
 st.markdown("---")
-st.header("Or classify live audio from your microphone")
+st.header("Classify live audio from your microphone")
 
 def audio_callback(frame: av.AudioFrame):
     audio = frame.to_ndarray(format="flt32")

@@ -15,7 +15,7 @@ CLASSES = [
 
 # Dummy training data for demonstration
 def dummy_train_model():
-    feature_len = 26  # 13 mfcc + 12 chroma + 1 rms = 26, plus maybe padding
+    feature_len = 29  # 13 mfcc + 12 chroma + 1 rms = 26, plus maybe padding
     X = np.random.rand(len(CLASSES)*5, feature_len)  # 5 samples per class random data
     y = np.repeat(CLASSES, 5)
     model = KNeighborsClassifier(n_neighbors=3)
@@ -47,7 +47,7 @@ if uploaded_file:
         st.error("Feature size mismatch.")
 
 st.markdown("---")
-st.header("Classify live audio from your microphone")
+st.header("Or classify live audio from your microphone")
 
 def audio_callback(frame: av.AudioFrame):
     audio = frame.to_ndarray(format="flt32")

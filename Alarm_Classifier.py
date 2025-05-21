@@ -55,10 +55,13 @@ with st.sidebar:
     st.write(
         """
         This app classifies common alarm and noise sounds such as:
+        
+        ALARM:
         - 🔥Fire alarm         
         - 🛎️ Buzzer             
         - 🚨Smoke detector     
-        - ⏰Timer alarm        
+        - ⏰Timer alarm 
+        NOISES:
         - 🚪Opening door       
         - 🐶Barking            
         - 💧Water              

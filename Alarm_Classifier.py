@@ -155,13 +155,4 @@ if "live_prediction" in st.session_state:
 else:
     st.info("Waiting for live audio input...")
 
-# Footer
-st.markdown(
-    """
-    <hr>
-    <p style="text-align:center; font-size:12px; color:#fff;">
-    Built with ❤️ using Streamlit and Librosa
-    </p>
-    """,
-    unsafe_allow_html=True,
 )

@@ -55,10 +55,10 @@ with st.sidebar:
     st.write(
         """
         This app classifies common alarm and noise sounds such as:
-        - Fire alarm
-        - Buzzer
-        - Smoke detector
-        - Timer alarm
+        - Fire alarm 🔔
+        - Buzzer 
+        - Smoke detector  
+        - Timer alarm 
         - Opening door
         - Barking
         - Water
@@ -71,7 +71,7 @@ with st.sidebar:
     )
     
 # Title and description
-st.title("🔊 Real-Time Alarm Sound Classifier 🔔")
+st.title("🔊 Real-Time Alarm Sound Classifier ")
 st.markdown(
     """
     Upload a WAV file or speak into your microphone to classify the sound.

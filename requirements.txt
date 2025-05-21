@@ -1,2 +1,2 @@
  librosa
-pip install webrtc_streamer
+pip install streamlit-webrtc

@@ -1,3 +1,5 @@
 librosa
-streamlit-webrtc
+Pillow
+streamlit
+
  

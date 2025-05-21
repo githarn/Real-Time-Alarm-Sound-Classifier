@@ -3,22 +3,26 @@ import numpy as np
 import librosa
 from sklearn.neighbors import KNeighborsClassifier
 
-st.title("🔊 Single WAV Alarm Sound Classifier")
+st.title("🔊 Alarm Sound Classifier: Fire, Tsunami, Timer")
 
-# --- Example training data for demonstration ---
-# Replace this with your own training files and labels if you want real training
+# For demo, create dummy training data with 3 classes
 @st.cache_data(show_spinner=False)
 def example_train_model():
-    # Dummy features for "fire alarm" and "any alarm" sounds
-    # Just random for demo purposes — replace with real features!
-    X = np.array([
-        np.random.rand(29),  # features length from MFCC+Chroma+RMS
-        np.random.rand(29),
-        np.random.rand(29),
-        np.random.rand(29),
-        np.random.rand(29)
+    feature_length = 29  # must match features extracted below
+
+    # Generate random dummy data for each alarm type (replace with real training data)
+    X = np.random.rand(9, feature_length)  # 3 samples per class
+    y = np.array([
+        'fire alarm',
+        'fire alarm',
+        'fire alarm',
+        'tsunami alarm',
+        'tsunami alarm',
+        'tsunami alarm',
+        'timer alarm',
+        'timer alarm',
+        'timer alarm',
     ])
-    y = np.array(['fire alarm', 'fire alarm', 'any alarm', 'any alarm', 'any alarm'])
     model = KNeighborsClassifier(n_neighbors=1)
     model.fit(X, y)
     return model
@@ -36,7 +40,9 @@ def extract_features(file):
         chroma_mean = np.mean(chroma, axis=1)
         rms_mean = np.mean(rms)
 
-        return np.hstack([mfccs_mean, chroma_mean, rms_mean])
+        features = np.hstack([mfccs_mean, chroma_mean, rms_mean])
+        st.write(f"Extracted features shape: {features.shape}")
+        return features
     except Exception as e:
         st.error(f"Error processing file: {e}")
         return None

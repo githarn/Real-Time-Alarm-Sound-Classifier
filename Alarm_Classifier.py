@@ -61,6 +61,7 @@ with st.sidebar:
         - 🛎️ Buzzer             
         - 🚨Smoke detector     
         - ⏰Timer alarm 
+        
         NOISES:
         - 🚪Opening door       
         - 🐶Barking            

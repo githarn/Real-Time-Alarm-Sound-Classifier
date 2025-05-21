@@ -1,78 +1,71 @@
 import streamlit as st
+from streamlit_webrtc import webrtc_streamer, AudioProcessorBase
+import av
 import numpy as np
 import librosa
-from sklearn.neighbors import KNeighborsClassifier
-from streamlit_webrtc import webrtc_streamer
-import av
+import joblib
+import threading
 
-st.title("🔊 Alarm & Noise Sound Classifier")
+# Load the pre-trained model
+@st.cache_resource
+def load_model():
+    return joblib.load("alarm_model.pkl")  # Must match your trained model
 
-# Define classes
-CLASSES = [
-    "Fire alarm", "Buzzer", "Smoke detector", "Timer alarm",
-    "Opening door", "Barking", "Water", "Lawn mower"
-]
+model = load_model()
+st.title("🔊 Real-Time Alarm Sound Classifier")
 
-# Dummy training data for demonstration
-def dummy_train_model():
-    feature_len = 29  # 13 mfcc + 12 chroma + 1 rms = 26, plus maybe padding
-    X = np.random.rand(len(CLASSES)*5, feature_len)  # 5 samples per class random data
-    y = np.repeat(CLASSES, 5)
-    model = KNeighborsClassifier(n_neighbors=3)
-    model.fit(X, y)
-    return model
+# For thread-safe display of prediction
+result_lock = threading.Lock()
+prediction_result = {"label": None}
 
-model = dummy_train_model()
+class AudioProcessor(AudioProcessorBase):
+    def __init__(self) -> None:
+        self.buffer = []
 
-def extract_features(y, sr):
-    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    chroma = librosa.feature.chroma_stft(y=y, sr=sr)
-    rms = librosa.feature.rms(y=y)
-    mfccs_mean = np.mean(mfccs, axis=1)
-    chroma_mean = np.mean(chroma, axis=1)
-    rms_mean = np.mean(rms)
-    return np.hstack([mfccs_mean, chroma_mean, rms_mean])
+    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
+        global prediction_result
+        audio = frame.to_ndarray().flatten().astype(np.float32) / 32768.0
+        self.buffer.extend(audio)
 
-st.header("Upload a WAV file to classify")
-uploaded_file = st.file_uploader("Choose a WAV file", type=['wav'])
+        if len(self.buffer) >= 22050 * 5:  # 5 seconds
+            y = np.array(self.buffer[:22050 * 5])
+            self.buffer = self.buffer[22050 * 5:]  # keep remaining
 
-if uploaded_file:
-    y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
-    features = extract_features(y, sr).reshape(1, -1)
+            try:
+                # Extract features
+                mfccs = librosa.feature.mfcc(y=y, sr=22050, n_mfcc=13)
+                chroma = librosa.feature.chroma_stft(y=y, sr=22050)
+                rms = librosa.feature.rms(y=y)
 
-    if features.shape[1] == model.n_features_in_:
-        prediction = model.predict(features)[0]
-        st.success(f"Predicted sound: **{prediction}**")
-    else:
-        st.error("Feature size mismatch.")
+                mfccs_mean = np.mean(mfccs, axis=1)
+                chroma_mean = np.mean(chroma, axis=1)
+                rms_mean = np.mean(rms)
 
-st.markdown("---")
-st.header("Or classify live audio from your microphone")
+                features = np.hstack([mfccs_mean, chroma_mean, rms_mean]).reshape(1, -1)
 
-def audio_callback(frame: av.AudioFrame):
-    audio = frame.to_ndarray(format="flt32")
-    if audio.ndim > 1:
-        audio = audio.mean(axis=0)  # stereo to mono
-    sr = frame.sample_rate
+                # Predict
+                pred = model.predict(features)[0]
+                with result_lock:
+                    prediction_result["label"] = pred
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
+        
+        return frame  # No audio output
 
-    features = extract_features(audio, sr).reshape(1, -1)
-    if features.shape[1] == model.n_features_in_:
-        pred = model.predict(features)[0]
-        st.session_state["live_prediction"] = pred
-    else:
-        st.session_state["live_prediction"] = "Feature size mismatch"
-
-    return frame
-
-webrtc_ctx = webrtc_streamer(
-    key="live-alarm-classifier",
-    audio_frame_callback=audio_callback,
-    media_stream_constraints={"audio": True, "video": False},
-    async_processing=True,
+webrtc_streamer(
+    key="example",
+    mode="sendonly",
+    in_audio=True,
+    audio_processor_factory=AudioProcessor,
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    }
 )
 
-if "live_prediction" in st.session_state:
-    st.success(f"Live audio prediction: **{st.session_state['live_prediction']}**")
+# Display prediction
+st.subheader("🎯 Detected Sound")
+label = prediction_result["label"]
+if label:
+    st.success(f"Prediction: **{label}**")
 else:
-    st.info("Waiting for live audio input...")
-
+    st.info("Listening... Make a sound.")

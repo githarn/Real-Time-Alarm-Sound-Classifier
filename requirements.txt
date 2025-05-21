@@ -1,2 +1,3 @@
 librosa
 pip install streamlit-webrtc
+import imghdr

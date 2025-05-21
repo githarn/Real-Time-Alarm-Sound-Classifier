@@ -1,1 +1,1 @@
-pip install librosa
+ install librosa

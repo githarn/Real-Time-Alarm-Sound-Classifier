@@ -55,14 +55,14 @@ with st.sidebar:
     st.write(
         """
         This app classifies common alarm and noise sounds such as:
-        - Fire alarm 🔔
-        - Buzzer 
-        - Smoke detector  
-        - Timer alarm 
-        - Opening door
-        - Barking
-        - Water
-        - Lawn mower
+        - Fire alarm 🔥
+        - Buzzer 🛎️
+        - Smoke detector  🚨
+        - Timer alarm ⏰
+        - Opening door 🚪
+        - Barking 🐶
+        - Water 💧
+        - Lawn mower 🚜
         
         Upload a WAV file or use your microphone for live classification.
         

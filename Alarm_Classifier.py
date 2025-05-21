@@ -70,7 +70,6 @@ webrtc_ctx = webrtc_streamer(
     media_stream_constraints={"audio": True, "video": False},
     async_processing=True,
 )
-
 if "live_prediction" in st.session_state:
     st.success(f"Live audio prediction: **{st.session_state['live_prediction']}**")
 else:

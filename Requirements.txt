@@ -1,1 +1,1 @@
- import librosa
+-m pip install librosa

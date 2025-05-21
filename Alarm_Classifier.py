@@ -69,12 +69,9 @@ with st.sidebar:
         *Note*: Model is trained on sample data for demo purposes.
         """
     )
-    st.markdown("---")
-    st.markdown("### Contact")
-    st.write("Your Name - your.email@example.com")
-
+    
 # Title and description
-st.title("🔊 Alarm & Noise Sound Classifier")
+st.title("🔊 Real-Time Alarm Sound Classifier 🔔")
 st.markdown(
     """
     Upload a WAV file or speak into your microphone to classify the sound.

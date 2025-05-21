@@ -1,1 +1,2 @@
-python -m pip install librosa
+import librosa
+librosa.show_versions()

@@ -62,7 +62,7 @@ with st.sidebar:
         - 🚨Smoke detector     
         - ⏰Timer alarm 
         
-        NOISES:
+        NOISE:
         - 🚪Opening door       
         - 🐶Barking            
         - 💧Water              

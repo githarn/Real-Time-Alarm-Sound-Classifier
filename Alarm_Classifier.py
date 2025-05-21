@@ -7,7 +7,7 @@ st.title("🔊 Alarm Sound Classifier: Fire, Tsunami, Timer")
 
 @st.cache_data(show_spinner=False)
 def example_train_model():
-    feature_length = 29  # must exactly match extract_features output
+    feature_length = 26  # must exactly match extract_features output
     # Dummy data for 3 classes, 3 samples each
     X = np.random.rand(9, feature_length)
     y = np.array([

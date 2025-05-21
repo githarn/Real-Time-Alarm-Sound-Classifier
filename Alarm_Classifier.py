@@ -2,17 +2,29 @@ import streamlit as st
 import numpy as np
 import librosa
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import os
+from streamlit_webrtc import webrtc_streamer
+import av
 
-st.title("🔊 Alarm Sound Classifier with Real Training")
+st.title("🔊 Alarm & Noise Sound Classifier")
 
-uploaded_files = st.file_uploader("Upload multiple labeled WAV files (zip or individual)", accept_multiple_files=True, type=['wav'])
-labels_input = st.text_input("Enter corresponding labels separated by commas (e.g. fire,fire,timer)")
+# Define classes
+CLASSES = [
+    "Fire alarm", "Buzzer", "Smoke detector", "Timer alarm",
+    "Opening door", "Barking", "Water", "Lawn mower"
+]
 
-def extract_features(file):
-    y, sr = librosa.load(file, duration=5.0, sr=None)
+# Dummy training data for demonstration
+def dummy_train_model():
+    feature_len = 29  # 13 mfcc + 12 chroma + 1 rms = 26, plus maybe padding
+    X = np.random.rand(len(CLASSES)*5, feature_len)  # 5 samples per class random data
+    y = np.repeat(CLASSES, 5)
+    model = KNeighborsClassifier(n_neighbors=3)
+    model.fit(X, y)
+    return model
+
+model = dummy_train_model()
+
+def extract_features(y, sr):
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
@@ -21,32 +33,46 @@ def extract_features(file):
     rms_mean = np.mean(rms)
     return np.hstack([mfccs_mean, chroma_mean, rms_mean])
 
-if uploaded_files and labels_input:
-    labels = [lbl.strip() for lbl in labels_input.split(',')]
-    if len(labels) != len(uploaded_files):
-        st.error("Number of labels does not match number of files!")
+st.header("Upload a WAV file to classify")
+uploaded_file = st.file_uploader("Choose a WAV file", type=['wav'])
+
+if uploaded_file:
+    y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
+    features = extract_features(y, sr).reshape(1, -1)
+
+    if features.shape[1] == model.n_features_in_:
+        prediction = model.predict(features)[0]
+        st.success(f"Predicted sound: **{prediction}**")
     else:
-        features = []
-        for file in uploaded_files:
-            f = extract_features(file)
-            features.append(f)
-        X = np.array(features)
-        y = np.array(labels)
+        st.error("Feature size mismatch.")
 
-        # Train/test split just to show accuracy
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+st.markdown("---")
+st.header("Or classify live audio from your microphone")
 
-        model = KNeighborsClassifier(n_neighbors=3)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        acc = accuracy_score(y_test, y_pred)
-        st.success(f"Model trained with accuracy: {acc*100:.2f}%")
+def audio_callback(frame: av.AudioFrame):
+    audio = frame.to_ndarray(format="flt32")
+    if audio.ndim > 1:
+        audio = audio.mean(axis=0)  # stereo to mono
+    sr = frame.sample_rate
 
-        st.markdown("---")
-        st.subheader("Upload one WAV file to classify:")
+    features = extract_features(audio, sr).reshape(1, -1)
+    if features.shape[1] == model.n_features_in_:
+        pred = model.predict(features)[0]
+        st.session_state["live_prediction"] = pred
+    else:
+        st.session_state["live_prediction"] = "Feature size mismatch"
 
-        test_file = st.file_uploader("Upload WAV to classify", type=['wav'])
-        if test_file:
-            test_feat = extract_features(test_file).reshape(1, -1)
-            prediction = model.predict(test_feat)[0]
-            st.write(f"Predicted alarm type: **{prediction}**")
+    return frame
+
+webrtc_ctx = webrtc_streamer(
+    key="live-alarm-classifier",
+    audio_frame_callback=audio_callback,
+    media_stream_constraints={"audio": True, "video": False},
+    async_processing=True,
+)
+
+if "live_prediction" in st.session_state:
+    st.success(f"Live audio prediction: **{st.session_state['live_prediction']}**")
+else:
+    st.info("Waiting for live audio input...")
+

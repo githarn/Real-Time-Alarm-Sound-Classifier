@@ -5,7 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av
 
-st.title("🔊 Real-Time Alarm Sound Classifier")
+st.title("🔊 Real-Time Alarm Sound Classifierssssssssss")
 
 # Define classes
 CLASSES = [

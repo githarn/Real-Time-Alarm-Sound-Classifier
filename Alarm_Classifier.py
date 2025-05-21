@@ -1,29 +1,23 @@
 import streamlit as st
 import numpy as np
 import librosa
-from sklearn.neighbors import KNeighborsClassifier
+import joblib
 from streamlit_webrtc import webrtc_streamer
 import av
 
+st.set_page_config(page_title="Alarm & Noise Sound Classifier", layout="centered")
 st.title("🔊 Alarm & Noise Sound Classifier")
 
-# Define classes
-CLASSES = [
-    "Fire alarm", "Buzzer", "Smoke detector", "Timer alarm",
-    "Opening door", "Barking", "Water", "Lawn mower"
-]
+# Load pre-trained model
+model = joblib.load("alarm_sound_model.pkl")  # Make sure this file is in the same directory or provide correct path
 
-# Dummy training data for demonstration
-def dummy_train_model():
-    feature_len = 26  # 13 mfcc + 12 chroma + 1 rms = 26, plus maybe padding
-    X = np.random.rand(len(CLASSES)*5, feature_len)  # 5 samples per class random data
-    y = np.repeat(CLASSES, 5)
-    model = KNeighborsClassifier(n_neighbors=3)
-    model.fit(X, y)
-    return model
+# Define expected feature length
+EXPECTED_FEATURE_LEN = model.n_features_in_
 
-model = dummy_train_model()
+# Define classes (for display only)
+CLASSES = model.classes_ if hasattr(model, 'classes_') else []
 
+# Feature extraction function
 def extract_features(y, sr):
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
@@ -33,30 +27,35 @@ def extract_features(y, sr):
     rms_mean = np.mean(rms)
     return np.hstack([mfccs_mean, chroma_mean, rms_mean])
 
+# WAV file classification
 st.header("Upload a WAV file to classify")
 uploaded_file = st.file_uploader("Choose a WAV file", type=['wav'])
 
-if uploaded_file:
-    y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
-    features = extract_features(y, sr).reshape(1, -1)
+if uploaded_file is not None:
+    try:
+        y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
+        features = extract_features(y, sr).reshape(1, -1)
 
-    if features.shape[1] == model.n_features_in_:
-        prediction = model.predict(features)[0]
-        st.success(f"Predicted sound: **{prediction}**")
-    else:
-        st.error("Feature size mismatch.")
+        if features.shape[1] == EXPECTED_FEATURE_LEN:
+            prediction = model.predict(features)[0]
+            st.success(f"Predicted sound: **{prediction}**")
+        else:
+            st.error("Feature size mismatch. Model expects a different number of features.")
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
 
+# Live audio classification
 st.markdown("---")
-st.header("Classify live audio from your microphone")
+st.header("Or classify live audio from your microphone")
 
 def audio_callback(frame: av.AudioFrame):
     audio = frame.to_ndarray(format="flt32")
     if audio.ndim > 1:
-        audio = audio.mean(axis=0)  # stereo to mono
+        audio = audio.mean(axis=0)  # Convert stereo to mono
     sr = frame.sample_rate
 
     features = extract_features(audio, sr).reshape(1, -1)
-    if features.shape[1] == model.n_features_in_:
+    if features.shape[1] == EXPECTED_FEATURE_LEN:
         pred = model.predict(features)[0]
         st.session_state["live_prediction"] = pred
     else:

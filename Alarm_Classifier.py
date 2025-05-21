@@ -1,7 +1,5 @@
 import streamlit as st
-import os
 import numpy as np
-import pandas as pd
 import librosa
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
@@ -9,17 +7,18 @@ from sklearn.metrics import accuracy_score
 
 st.title("🔊 Real-Time Alarm Sound Classifier (Offline Model Training)")
 
-# === Upload Files ===
-uploaded_csv = st.file_uploader("Upload Metadata CSV", type=["csv"])
-audio_dir = st.text_input("Enter path to folder containing WAV files")
+# Upload multiple wav files
+uploaded_files = st.file_uploader("Upload WAV files", type=["wav"], accept_multiple_files=True)
 
-if uploaded_csv and audio_dir:
-    metadata = pd.read_csv(uploaded_csv)
+# Let user enter the label for all uploaded files (or you can extend to per-file labeling)
+label = st.text_input("Enter label for all uploaded audio files")
 
+if uploaded_files and label:
     @st.cache_data
-    def extract_features_safe(file_path):
+    def extract_features_safe(file):
         try:
-            y, sr = librosa.load(file_path, duration=5.0)
+            # librosa accepts file-like objects, but sometimes better to read bytes
+            y, sr = librosa.load(file, duration=5.0, sr=None)
             mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
             chroma = librosa.feature.chroma_stft(y=y, sr=sr)
             rms = librosa.feature.rms(y=y)
@@ -30,27 +29,28 @@ if uploaded_csv and audio_dir:
 
             return np.hstack([mfccs_mean, chroma_mean, rms_mean])
         except Exception as e:
-            st.warning(f"Error processing {file_path}: {e}")
+            st.warning(f"Error processing {file.name}: {e}")
             return None
 
-    st.info("Extracting features from audio files...")
-    features, labels = [], []
+    st.info("Extracting features from uploaded audio files...")
 
-    for _, row in metadata.iterrows():
-        file_name = row['file_name']
-        label = row['label']
-        file_path = os.path.join(audio_dir, file_name)
-        feats = extract_features_safe(file_path)
+    features = []
+    labels = []
+
+    for file in uploaded_files:
+        feats = extract_features_safe(file)
         if feats is not None:
             features.append(feats)
-            labels.append(label)
+            labels.append(label)  # same label for all files
 
     if features:
         st.success(f"✅ Extracted features from {len(features)} audio files.")
 
-        # Train classifier
         X = np.array(features)
         y = np.array(labels)
+
+        # For demonstration, we split the data even if all have same label
+        # In practice, you'd want multiple labels and files per label
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         model = KNeighborsClassifier(n_neighbors=3)
@@ -61,4 +61,5 @@ if uploaded_csv and audio_dir:
         st.metric("🎯 Model Accuracy", f"{acc * 100:.2f}%")
     else:
         st.error("❌ No valid audio features extracted.")
-
+else:
+    st.info("Please upload WAV files and enter a label to start training.")

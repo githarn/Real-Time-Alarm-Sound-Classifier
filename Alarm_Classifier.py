@@ -6,7 +6,7 @@ from streamlit_webrtc import webrtc_streamer
 import av
 
 # Page config for better UX
-st.set_page_config(page_title="Alarm & Noise Sound Classifier", layout="wide", page_icon="🔔")
+st.set_page_config(page_title="Real-Time Alarm Sound Classifier", layout="wide", page_icon="🔔")
 
 # Inject background gradient with CSS
 st.markdown(

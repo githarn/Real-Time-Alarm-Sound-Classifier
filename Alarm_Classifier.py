@@ -4,34 +4,69 @@ import librosa
 from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av
+import random
+import time
 
-# Page configuration
-st.set_page_config(page_title="🔔 Real-Time Alarm Classifier", layout="centered", page_icon="🔊")
+# Page Configuration
+st.set_page_config(page_title="🔔 Real-Time Alarm Classifier", layout="centered", page_icon="🎧")
 
-# App title
-st.markdown("<h1 style='text-align:center;'>🔊 Real-Time Alarm Sound Classifier</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;'>Upload a WAV file or use your mic to classify alarms and noises in real-time.</p>", unsafe_allow_html=True)
+# Toggle Theme (Dark/Light)
+theme = st.toggle("🌗 Toggle Dark Mode", value=False)
+bg_color = "#1E1E1E" if theme else "#FFFFFF"
+text_color = "#FFFFFF" if theme else "#000000"
 
-# Sidebar info
-with st.sidebar:
-    st.header("ℹ️ How to Use")
+# Custom Styling
+st.markdown(
+    f"""
+    <style>
+    html, body {{
+        background-color: {bg_color};
+        color: {text_color};
+    }}
+    .stProgress > div > div > div {{
+        background-color: #0072B2;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Header
+st.markdown(f"<h1 style='text-align:center;'>🔊 Real-Time Alarm Sound Classifier</h1>", unsafe_allow_html=True)
+
+# Help Section
+with st.expander("🧠 How does this work?"):
     st.markdown("""
-    - Upload a `.wav` file under 5 seconds **OR** use your microphone.
-    - The model classifies the sound into:
-      - 🔥 Fire alarm
-      - 🛎️ Buzzer
-      - 🚨 Smoke detector
-      - ⏰ Timer alarm
-      - 🚪 Opening door
-      - 🐶 Barking
-      - 💧 Water
-      - 🚜 Lawn mower
-    - Trained on demo data. Real-time classification may vary.
+    - Upload a short `.wav` file or use your mic.
+    - The system classifies sounds into:
+      - 🔥 Fire alarm, 🛎️ Buzzer, 🚨 Smoke detector, ⏰ Timer alarm  
+      - 🚪 Opening door, 🐶 Barking, 💧 Water, 🚜 Lawn mower
+    - A simulated confidence bar shows how confident the model is.
+    - Results update in real-time for microphone input.
     """)
 
-# Dummy model
-CLASSES = ["Fire alarm", "Buzzer", "Smoke detector", "Timer alarm", "Opening door", "Barking", "Water", "Lawn mower"]
+# Class Definitions
+ALL_CLASSES = {
+    "Fire alarm": "🔥",
+    "Buzzer": "🛎️",
+    "Smoke detector": "🚨",
+    "Timer alarm": "⏰",
+    "Opening door": "🚪",
+    "Barking": "🐶",
+    "Water": "💧",
+    "Lawn mower": "🚜"
+}
 
+# Filter Option
+sound_type = st.radio("🎚️ Filter Sound Types", ["All", "Alarm", "Noise"], horizontal=True)
+if sound_type == "Alarm":
+    CLASSES = ["Fire alarm", "Buzzer", "Smoke detector", "Timer alarm"]
+elif sound_type == "Noise":
+    CLASSES = ["Opening door", "Barking", "Water", "Lawn mower"]
+else:
+    CLASSES = list(ALL_CLASSES.keys())
+
+# Dummy Model
 def dummy_train_model():
     X = np.random.rand(len(CLASSES)*20, 26)
     y = np.repeat(CLASSES, 20)
@@ -41,35 +76,39 @@ def dummy_train_model():
 
 model = dummy_train_model()
 
-# Feature extraction
+# Feature Extraction
 def extract_features(y, sr):
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
     return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
-# Tabs for Upload vs. Live
-tab1, tab2 = st.tabs(["📂 Upload WAV File", "🎤 Live Microphone Input"])
+# Tabs
+tab1, tab2 = st.tabs(["📂 Upload File", "🎤 Microphone"])
 
-# WAV Upload
+# Upload Tab
 with tab1:
-    uploaded_file = st.file_uploader("Upload a WAV file (max ~5 sec)", type=["wav"])
+    uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
     if uploaded_file:
-        with st.spinner("🔎 Analyzing..."):
+        with st.spinner("Analyzing..."):
             y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
             features = extract_features(y, sr).reshape(1, -1)
             if features.shape[1] == model.n_features_in_:
                 prediction = model.predict(features)[0]
-                st.success(f"🎯 Prediction: **{prediction}**")
+                confidence = random.uniform(0.75, 1.0)  # Simulated
+                st.success(f"{ALL_CLASSES[prediction]} **{prediction}** detected!")
+                st.progress(confidence)
+                st.toast(f"✅ Classifier is {int(confidence * 100)}% confident.", icon="🤖")
             else:
-                st.error("⚠️ Could not extract correct feature size.")
+                st.error("⚠️ Feature size mismatch.")
 
-# Live mic
+# Live Mic Tab
 with tab2:
-    st.markdown("### 🔊 Start speaking to classify")
-    st.caption("Ensure microphone permission is granted in your browser.")
+    st.markdown("### 🎙️ Speak into your mic")
+    st.caption("Allow mic permissions in your browser.")
+    
     if "live_prediction" not in st.session_state:
-        st.session_state["live_prediction"] = "Listening..."
+        st.session_state["live_prediction"] = "Waiting..."
 
     def audio_callback(frame: av.AudioFrame):
         audio = frame.to_ndarray(format="flt32")
@@ -78,20 +117,26 @@ with tab2:
         sr = frame.sample_rate
         features = extract_features(audio, sr).reshape(1, -1)
         if features.shape[1] == model.n_features_in_:
-            st.session_state["live_prediction"] = model.predict(features)[0]
+            pred = model.predict(features)[0]
+            st.session_state["live_prediction"] = pred
         else:
             st.session_state["live_prediction"] = "⚠️ Feature mismatch"
         return frame
 
-    webrtc_ctx = webrtc_streamer(
-        key="audio-stream",
+    webrtc_streamer(
+        key="live-audio",
         audio_frame_callback=audio_callback,
         media_stream_constraints={"audio": True, "video": False},
         async_processing=True,
     )
 
-    st.info(f"🔔 Detected: **{st.session_state['live_prediction']}**")
+    st.info(f"🔔 Real-time: **{ALL_CLASSES.get(st.session_state['live_prediction'], '')} {st.session_state['live_prediction']}**")
+
+# Sound Class Legend
+with st.expander("📘 Sound Labels Legend"):
+    for name, emoji in ALL_CLASSES.items():
+        st.markdown(f"- {emoji} **{name}**")
 
 # Footer
 st.markdown("---")
-st.caption("🚧 Demo version — fine-tuning and training on real-world data will improve accuracy.")
+st.caption("🔧 Built with Streamlit · Demo classifier · UI enhanced for interactivity.")

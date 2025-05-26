@@ -4,71 +4,110 @@ import librosa
 from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av
-import random
-import time
 
-# Page Configuration
-st.set_page_config(page_title="🔔 Real-Time Alarm Classifier", layout="centered", page_icon="🎧")
+# -------------------- Page Config --------------------
+st.set_page_config(page_title="Real-Time Alarm Sound Classifier", layout="wide", page_icon="🔔")
 
-# Toggle Theme (Dark/Light)
-theme = st.toggle("🌗 Toggle Dark Mode", value=False)
-bg_color = "#1E1E1E" if theme else "#FFFFFF"
-text_color = "#FFFFFF" if theme else "#000000"
-
-# Custom Styling
+# -------------------- Custom CSS --------------------
 st.markdown(
-    f"""
+    """
     <style>
-    html, body {{
-        background-color: {bg_color};
-        color: {text_color};
-    }}
-    .stProgress > div > div > div {{
-        background-color: #0072B2;
-    }}
+    body {
+        background: linear-gradient(to right, #f0f9ff, #cbebff);
+        font-family: 'Segoe UI', sans-serif;
+        color: #333;
+    }
+
+    .stApp {
+        background: linear-gradient(135deg, #d4f1f9 0%, #ffffff 100%);
+    }
+
+    .stButton>button {
+        background-color: #0099cc;
+        color: white;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        transition: 0.3s;
+    }
+
+    .stButton>button:hover {
+        background-color: #007399;
+    }
+
+    .stFileUploader {
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid #0072B2;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .custom-card {
+        padding: 1.5rem;
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .title-text {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #0072B2;
+    }
+
+    .subtitle-text {
+        font-size: 1.2rem;
+        margin-top: -10px;
+        color: #333;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# Header
-st.markdown(f"<h1 style='text-align:center;'>🔊 Real-Time Alarm Sound Classifier</h1>", unsafe_allow_html=True)
+# -------------------- Sidebar Info --------------------
+with st.sidebar:
+    st.markdown("## ℹ️ About this App")
+    st.write(
+        """
+        This app classifies common alarm and noise sounds such as:
 
-# Help Section
-with st.expander("🧠 How does this work?"):
-    st.markdown("""
-    - Upload a short `.wav` file or use your mic.
-    - The system classifies sounds into:
-      - 🔥 Fire alarm, 🛎️ Buzzer, 🚨 Smoke detector, ⏰ Timer alarm  
-      - 🚪 Opening door, 🐶 Barking, 💧 Water, 🚜 Lawn mower
-    - A simulated confidence bar shows how confident the model is.
-    - Results update in real-time for microphone input.
-    """)
+        **ALARM**
+        - 🔥 Fire alarm         
+        - 🛎️ Buzzer             
+        - 🚨 Smoke detector     
+        - ⏰ Timer alarm 
 
-# Class Definitions
-ALL_CLASSES = {
-    "Fire alarm": "🔥",
-    "Buzzer": "🛎️",
-    "Smoke detector": "🚨",
-    "Timer alarm": "⏰",
-    "Opening door": "🚪",
-    "Barking": "🐶",
-    "Water": "💧",
-    "Lawn mower": "🚜"
-}
+        **NOISE**
+        - 🚪 Opening door       
+        - 🐶 Barking            
+        - 💧 Water              
+        - 🚜 Lawn mower         
 
-# Filter Option
-sound_type = st.radio("🎚️ Filter Sound Types", ["All", "Alarm", "Noise"], horizontal=True)
-if sound_type == "Alarm":
-    CLASSES = ["Fire alarm", "Buzzer", "Smoke detector", "Timer alarm"]
-elif sound_type == "Noise":
-    CLASSES = ["Opening door", "Barking", "Water", "Lawn mower"]
-else:
-    CLASSES = list(ALL_CLASSES.keys())
+        Upload a WAV file or use your microphone for live classification.
 
-# Dummy Model
+        *Note*: Model is trained on sample data for demo purposes.
+        """
+    )
+
+# -------------------- Page Title --------------------
+st.markdown('<h1 class="title-text">🔊 Real-Time Alarm Sound Classifier</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle-text">Upload a WAV file or use your microphone to classify the sound.</p>', unsafe_allow_html=True)
+
+# -------------------- Classes --------------------
+CLASSES = [
+    "Fire alarm", "Buzzer", "Smoke detector", "Timer alarm",
+    "Opening door", "Barking", "Water", "Lawn mower"
+]
+
+# -------------------- Dummy Model --------------------
 def dummy_train_model():
-    X = np.random.rand(len(CLASSES)*20, 26)
+    feature_len = 26
+    X = np.random.rand(len(CLASSES)*20, feature_len)
     y = np.repeat(CLASSES, 20)
     model = KNeighborsClassifier(n_neighbors=3)
     model.fit(X, y)
@@ -76,67 +115,77 @@ def dummy_train_model():
 
 model = dummy_train_model()
 
-# Feature Extraction
+# -------------------- Feature Extraction --------------------
 def extract_features(y, sr):
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
-    return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
+    mfccs_mean = np.mean(mfccs, axis=1)
+    chroma_mean = np.mean(chroma, axis=1)
+    rms_mean = np.mean(rms)
+    return np.hstack([mfccs_mean, chroma_mean, rms_mean])
 
-# Tabs
-tab1, tab2 = st.tabs(["📂 Upload File", "🎤 Microphone"])
+# -------------------- Upload & Prediction Columns --------------------
+col1, col2 = st.columns(2)
 
-# Upload Tab
-with tab1:
-    uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
+with col1:
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.header("📂 Upload WAV file")
+    uploaded_file = st.file_uploader("Select a WAV file to classify", type=['wav'], key="upload")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
     if uploaded_file:
-        with st.spinner("Analyzing..."):
+        with st.spinner("Analyzing uploaded audio..."):
             y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
             features = extract_features(y, sr).reshape(1, -1)
             if features.shape[1] == model.n_features_in_:
                 prediction = model.predict(features)[0]
-                confidence = random.uniform(0.75, 1.0)  # Simulated
-                st.success(f"{ALL_CLASSES[prediction]} **{prediction}** detected!")
-                st.progress(confidence)
-                st.toast(f"✅ Classifier is {int(confidence * 100)}% confident.", icon="🤖")
+                st.success(f"🎯 **Prediction:** {prediction}")
             else:
-                st.error("⚠️ Feature size mismatch.")
+                st.error("⚠️ Feature size mismatch. Could not classify.")
+    else:
+        st.info("📁 Upload a file to see prediction here.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Live Mic Tab
-with tab2:
-    st.markdown("### 🎙️ Speak into your mic")
-    st.caption("Allow mic permissions in your browser.")
-    
-    if "live_prediction" not in st.session_state:
-        st.session_state["live_prediction"] = "Waiting..."
+# -------------------- Live Microphone Classification --------------------
+st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+st.header("🎤 Live microphone classification")
 
-    def audio_callback(frame: av.AudioFrame):
-        audio = frame.to_ndarray(format="flt32")
-        if audio.ndim > 1:
-            audio = audio.mean(axis=0)
-        sr = frame.sample_rate
-        features = extract_features(audio, sr).reshape(1, -1)
-        if features.shape[1] == model.n_features_in_:
-            pred = model.predict(features)[0]
-            st.session_state["live_prediction"] = pred
-        else:
-            st.session_state["live_prediction"] = "⚠️ Feature mismatch"
-        return frame
+def audio_callback(frame: av.AudioFrame):
+    audio = frame.to_ndarray(format="flt32")
+    if audio.ndim > 1:
+        audio = audio.mean(axis=0)
+    sr = frame.sample_rate
+    features = extract_features(audio, sr).reshape(1, -1)
+    if features.shape[1] == model.n_features_in_:
+        pred = model.predict(features)[0]
+        st.session_state["live_prediction"] = pred
+    else:
+        st.session_state["live_prediction"] = "⚠️ Feature size mismatch"
+    return frame
 
-    webrtc_streamer(
-        key="live-audio",
-        audio_frame_callback=audio_callback,
-        media_stream_constraints={"audio": True, "video": False},
-        async_processing=True,
-    )
+webrtc_ctx = webrtc_streamer(
+    key="live-alarm-classifier",
+    audio_frame_callback=audio_callback,
+    media_stream_constraints={"audio": True, "video": False},
+    async_processing=True,
+)
 
-    st.info(f"🔔 Real-time: **{ALL_CLASSES.get(st.session_state['live_prediction'], '')} {st.session_state['live_prediction']}**")
+if "live_prediction" in st.session_state:
+    st.success(f"🔊 Live prediction: **{st.session_state['live_prediction']}**")
+else:
+    st.info("🎙️ Waiting for live audio input...")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Sound Class Legend
-with st.expander("📘 Sound Labels Legend"):
-    for name, emoji in ALL_CLASSES.items():
-        st.markdown(f"- {emoji} **{name}**")
-
-# Footer
-st.markdown("---")
-st.caption("🔧 Built with Streamlit · Demo classifier · UI enhanced for interactivity.")
+# -------------------- Footer --------------------
+st.markdown(
+    """
+    <hr>
+    <center>
+    <small>🔔 Real-Time Sound Classifier | Demo Version | Built with ❤️ using Streamlit</small>
+    </center>
+    """,
+    unsafe_allow_html=True
+)

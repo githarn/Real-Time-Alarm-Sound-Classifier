@@ -2,4 +2,4 @@ librosa
 Pillow
 streamlit
 streamlit-webrtc
-motplotlib
+matplotlib

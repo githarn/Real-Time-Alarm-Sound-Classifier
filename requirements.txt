@@ -3,3 +3,4 @@ Pillow
 streamlit
 streamlit-webrtc
 matplotlib
+colormaps

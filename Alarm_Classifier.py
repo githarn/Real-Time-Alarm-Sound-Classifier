@@ -59,7 +59,7 @@ def extract_features(file_path):
     return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
 # 📂 Load Dataset and Train Model
-dataset_folder = "C:/Users/Downloads/nonalarm/alarmsound"
+dataset_folder = "C:/Users/Harn Renel Beltran/Downloads/"
 X, y = load_dataset(dataset_folder)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 

@@ -3,23 +3,22 @@ import numpy as np
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-import random
-import time
+import seaborn as sns
+from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av
+import random
+import time
 
 # 🎨 Page Configuration
-st.set_page_config(page_title="🔔 Alarm Classifier", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="🔔 Alarm Sound Classifier", layout="wide", page_icon="🎧")
 
-# 🌗 Toggle Dark Mode
+# 🌗 Toggle Theme Mode
 theme = st.toggle("🌗 Toggle Dark Mode", value=False)
 bg_color = "#1E1E1E" if theme else "#F4F4F4"
 text_color = "#FFFFFF" if theme else "#000000"
 
-# 💎 Custom Styling
+# 💎 Custom Styling for Glass UI
 st.markdown(f"""
     <style>
     body{{background-color:{bg_color}; color:{text_color}; font-family: 'Arial', sans-serif;}}
@@ -27,7 +26,10 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# 🔊 Sound Classes
+# 🔊 Header
+st.markdown("<h1 style='text-align:center;'>🔊 Enhanced Alarm Classifier</h1>", unsafe_allow_html=True)
+
+# 🎭 Sound Classes
 ALL_CLASSES = {
     "Fire alarm": "🔥", "Buzzer": "🛎️", "Smoke detector": "🚨",
     "Timer alarm": "⏰", "Opening door": "🚪", "Barking": "🐶",
@@ -35,28 +37,22 @@ ALL_CLASSES = {
 }
 CLASSES = list(ALL_CLASSES.keys())
 
-# 🏗 CNN Model for Sound Classification
-def build_cnn_model():
-    model = Sequential([
-        Conv2D(32, kernel_size=(3,3), activation='relu', input_shape=(64,64,1)),
-        MaxPooling2D(pool_size=(2,2)),
-        Conv2D(64, kernel_size=(3,3), activation='relu'),
-        MaxPooling2D(pool_size=(2,2)),
-        Flatten(),
-        Dense(128, activation='relu'),
-        Dropout(0.3),
-        Dense(len(CLASSES), activation='softmax')
-    ])
-    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+# 🏆 Dummy Model for Classification
+def train_dummy_model():
+    X = np.random.rand(len(CLASSES)*20, 26)
+    y = np.repeat(CLASSES, 20)
+    model = KNeighborsClassifier(n_neighbors=3)
+    model.fit(X, y)
     return model
 
-cnn_model = build_cnn_model()
+model = train_dummy_model()
 
-# 🔬 Feature Extraction - Mel Spectrogram
-def extract_mel_spectrogram(y, sr):
-    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=64)
-    mel_db = librosa.power_to_db(mel_spec, ref=np.max)
-    return mel_db
+# 🔬 Feature Extraction
+def extract_features(y, sr):
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+    chroma = librosa.feature.chroma_stft(y=y, sr=sr)
+    rms = librosa.feature.rms(y=y)
+    return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
 # 📂 Upload & 🎤 Mic Tabs
 tab1, tab2 = st.tabs(["📂 Upload File", "🎤 Microphone"])
@@ -67,16 +63,15 @@ with tab1:
     if uploaded_file:
         y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
 
-        # 📊 Audio Visualization (Spectrogram)
+        # 📊 Audio Visualization (Waveform)
         fig, ax = plt.subplots(figsize=(6, 3))
-        mel_spec = extract_mel_spectrogram(y, sr)
-        librosa.display.specshow(mel_spec, sr=sr, x_axis='time', y_axis='mel', ax=ax)
-        ax.set_title("Spectrogram", fontsize=12)
+        librosa.display.waveshow(y, sr=sr, ax=ax)
+        ax.set_title("Waveform Visualization", fontsize=12)
         st.pyplot(fig)
 
-        features = mel_spec.flatten().reshape(1, -1)
-        if features.shape[1] == cnn_model.input_shape[1]:
-            prediction = random.choice(CLASSES)  # Placeholder (Replace with actual model inference)
+        features = extract_features(y, sr).reshape(1, -1)
+        if features.shape[1] == model.n_features_in_:
+            prediction = model.predict(features)[0]
             confidence = random.uniform(0.75, 1.0)
 
             # 🔄 Animated Progress Bar
@@ -94,11 +89,11 @@ with tab2:
     def audio_callback(frame: av.AudioFrame):
         audio = frame.to_ndarray(format="flt32").mean(axis=0) if audio.ndim > 1 else frame.to_ndarray(format="flt32")
         sr = frame.sample_rate
-        features = extract_mel_spectrogram(audio, sr).flatten().reshape(1, -1)
-        pred = random.choice(CLASSES)  # Placeholder (Replace with actual model inference)
+        features = extract_features(audio, sr).reshape(1, -1)
+        pred = model.predict(features)[0] if features.shape[1] == model.n_features_in_ else "⚠️ Feature mismatch"
         return frame
 
     webrtc_streamer(key="live-audio", audio_frame_callback=audio_callback, media_stream_constraints={"audio": True, "video": False}, async_processing=True)
 
 st.markdown("---")
-st.caption("Built with Streamlit · Advanced CNN-based Classifier 🚀")
+st.caption("Built with Streamlit · Enhanced UI & Interactivity 🚀")

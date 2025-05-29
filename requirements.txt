@@ -3,6 +3,5 @@ Pillow
 streamlit
 streamlit-webrtc
 matplotlib
-colormaps
 seaborn
-import tensorflow
+

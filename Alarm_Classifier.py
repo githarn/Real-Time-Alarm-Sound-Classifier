@@ -4,14 +4,13 @@ import numpy as np
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av
 import random
 import time
- 
+
 # 🎨 Page Configuration
 st.set_page_config(page_title="🔔 Alarm Sound Classifier", layout="wide", page_icon="🎧")
 
@@ -32,23 +31,29 @@ st.markdown("<h1 style='text-align:center;'>🔊 Enhanced Alarm Classifier</h1>"
 
 # 🎭 Sound Classes
 ALL_CLASSES = {
-    "Fire alarm": "🔥", "Buzzer": "🛎️", "Smoke detector": "🚨",
-    "Timer alarm": "⏰", "Opening door": "🚪", "Barking": "🐶",
-    "Water": "💧", "Lawn mower": "🚜", "Non-alarm sound": "⚠️"
+    "alarmsound": "🚨 Alarm",
+    "nonalarm": "🔇 Non-Alarm"
 }
-CLASSES = list(ALL_CLASSES.keys())
 
-# 🏆 Function to Load and Train Model
+# 🏆 Function to Load and Train Model (recursive)
 def load_dataset(dataset_folder):
     X, y = [], []
     for category in ["alarmsound", "nonalarm"]:
         category_path = os.path.join(dataset_folder, category)
-        for file in os.listdir(category_path):
-            if file.endswith(".wav"):
-                file_path = os.path.join(category_path, file)
-                features = extract_features(file_path)
-                X.append(features)
-                y.append(category)
+        if not os.path.exists(category_path):
+            st.error(f"❌ Directory not found: {category_path}")
+            raise FileNotFoundError(f"Directory not found: {category_path}")
+
+        for root, _, files in os.walk(category_path):  # Recursively walk through subfolders
+            for file in files:
+                if file.endswith(".wav"):
+                    file_path = os.path.join(root, file)
+                    try:
+                        features = extract_features(file_path)
+                        X.append(features)
+                        y.append(category)
+                    except Exception as e:
+                        st.warning(f"⚠️ Skipped file {file_path}: {e}")
     return np.array(X), np.array(y)
 
 # 🔬 Feature Extraction
@@ -57,15 +62,14 @@ def extract_features(file_path_or_audio):
         y, sr = librosa.load(file_path_or_audio, sr=None, duration=5.0)
     else:
         y = file_path_or_audio
-        sr = 22050  # Default sample rate for librosa
-    
+        sr = 22050  # Default sample rate
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
     return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
 # 📂 Load Dataset and Train Model
-dataset_folder = os.path.expanduser("~/Downloads")  # Automatically uses Downloads folder
+dataset_folder = os.path.expanduser("~/Downloads")  # Or set full absolute path if needed
 X, y = load_dataset(dataset_folder)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -81,7 +85,7 @@ with tab1:
     if uploaded_file:
         y_audio, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
 
-        # 📊 Audio Visualization (Waveform)
+        # 📊 Audio Visualization
         fig, ax = plt.subplots(figsize=(6, 3))
         librosa.display.waveshow(y_audio, sr=sr, ax=ax)
         ax.set_title("Waveform Visualization", fontsize=12)
@@ -92,7 +96,6 @@ with tab1:
             prediction = model.predict(features)[0]
             confidence = random.uniform(0.75, 1.0)
 
-            # 🔄 Animated Progress Bar
             with st.empty():
                 for i in range(0, int(confidence * 100), 5):
                     time.sleep(0.05)

@@ -41,7 +41,7 @@ CLASSES = list(ALL_CLASSES.keys())
 # 🏆 Function to Load and Train Model
 def load_dataset(dataset_folder):
     X, y = [], []
-    for category in ["alarm_sounds", "non_alarm_sounds"]:
+    for category in ["alarmsounds", "nonalarm"]:
         category_path = os.path.join(dataset_folder, category)
         for file in os.listdir(category_path):
             file_path = os.path.join(category_path, file)

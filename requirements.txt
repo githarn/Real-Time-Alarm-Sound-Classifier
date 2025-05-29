@@ -1,5 +1,4 @@
 librosa
-librosa.display
 Pillow
 streamlit
 streamlit-webrtc

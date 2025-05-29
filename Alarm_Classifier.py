@@ -44,22 +44,28 @@ def load_dataset(dataset_folder):
     for category in ["alarmsound", "nonalarm"]:
         category_path = os.path.join(dataset_folder, category)
         for file in os.listdir(category_path):
-            file_path = os.path.join(category_path, file)
-            features = extract_features(file_path)
-            X.append(features)
-            y.append(category)
+            if file.endswith(".wav"):
+                file_path = os.path.join(category_path, file)
+                features = extract_features(file_path)
+                X.append(features)
+                y.append(category)
     return np.array(X), np.array(y)
 
 # 🔬 Feature Extraction
-def extract_features(file_path):
-    y, sr = librosa.load(file_path, sr=None, duration=5.0)
+def extract_features(file_path_or_audio):
+    if isinstance(file_path_or_audio, str):
+        y, sr = librosa.load(file_path_or_audio, sr=None, duration=5.0)
+    else:
+        y = file_path_or_audio
+        sr = 22050  # Default sample rate for librosa
+    
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
     return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
 # 📂 Load Dataset and Train Model
-dataset_folder = "C:/Users/Downloads/"
+dataset_folder = os.path.expanduser("~/Downloads")  # Automatically uses Downloads folder
 X, y = load_dataset(dataset_folder)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -73,39 +79,45 @@ tab1, tab2 = st.tabs(["📂 Upload File", "🎤 Microphone"])
 with tab1:
     uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
     if uploaded_file:
-        y, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
+        y_audio, sr = librosa.load(uploaded_file, sr=None, duration=5.0)
 
         # 📊 Audio Visualization (Waveform)
         fig, ax = plt.subplots(figsize=(6, 3))
-        librosa.display.waveshow(y, sr=sr, ax=ax)
+        librosa.display.waveshow(y_audio, sr=sr, ax=ax)
         ax.set_title("Waveform Visualization", fontsize=12)
         st.pyplot(fig)
 
-        features = extract_features(uploaded_file).reshape(1, -1)
+        features = extract_features(y_audio).reshape(1, -1)
         if features.shape[1] == model.n_features_in_:
             prediction = model.predict(features)[0]
             confidence = random.uniform(0.75, 1.0)
 
             # 🔄 Animated Progress Bar
             with st.empty():
-                for i in range(0, int(confidence*100), 5):
+                for i in range(0, int(confidence * 100), 5):
                     time.sleep(0.05)
-                    st.progress(i/100)
+                    st.progress(i / 100)
 
-            st.success(f"{ALL_CLASSES[prediction]} **{prediction}** detected!")
+            st.success(f"{ALL_CLASSES.get(prediction, '🔊')} **{prediction}** detected!")
 
 # 🎤 Live Microphone Tab
 with tab2:
     st.markdown("### 🎙 Speak into your mic")
 
     def audio_callback(frame: av.AudioFrame):
-        audio = frame.to_ndarray(format="flt32").mean(axis=0) if frame.to_ndarray(format="flt32").ndim > 1 else frame.to_ndarray(format="flt32")
-        sr = frame.sample_rate
+        audio = frame.to_ndarray(format="flt32")
+        if audio.ndim > 1:
+            audio = audio.mean(axis=0)
         features = extract_features(audio).reshape(1, -1)
         pred = model.predict(features)[0] if features.shape[1] == model.n_features_in_ else "⚠️ Feature mismatch"
         return frame
 
-    webrtc_streamer(key="live-audio", audio_frame_callback=audio_callback, media_stream_constraints={"audio": True, "video": False}, async_processing=True)
+    webrtc_streamer(
+        key="live-audio",
+        audio_frame_callback=audio_callback,
+        media_stream_constraints={"audio": True, "video": False},
+        async_processing=True
+    )
 
 st.markdown("---")
 st.caption("Built with Streamlit · Enhanced UI & Interactivity 🚀")

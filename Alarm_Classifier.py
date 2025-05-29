@@ -3,6 +3,7 @@ import numpy as np
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
+import colormaps as mcm
 from sklearn.neighbors import KNeighborsClassifier
 from streamlit_webrtc import webrtc_streamer
 import av

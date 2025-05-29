@@ -1,4 +1,3 @@
-
 import streamlit as st
 import numpy as np
 import librosa
@@ -8,34 +7,38 @@ import av
 import random
 import time
 
-# Page Configuration
+# 🎨 Page Configuration
 st.set_page_config(page_title="🔔 Real-Time Alarm Classifier", layout="centered", page_icon="🎧")
 
-# Toggle Theme (Dark/Light)
+# 🌗 Toggle Dark Mode
 theme = st.toggle("🌗 Toggle Dark Mode", value=False)
 bg_color = "#1E1E1E" if theme else "#FFFFFF"
 text_color = "#FFFFFF" if theme else "#000000"
 
-# Custom Styling
+# 🔧 Apply Style
 st.markdown(
     f"""
     <style>
-    html, body {{
+    .dark-container {{
         background-color: {bg_color};
         color: {text_color};
+        padding: 30px;
+        border-radius: 10px;
     }}
-    .stProgress > div > div > div {{
+    .stButton > button {{
         background-color: #0072B2;
+        color: white;
     }}
     </style>
+    <div class="dark-container">
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
-# Header
+# 🔊 Header
 st.markdown(f"<h1 style='text-align:center;'>🔊 Real-Time Alarm Sound Classifier</h1>", unsafe_allow_html=True)
 
-# Help Section
+# 🧠 Help Section
 with st.expander("🧠 How does this work?"):
     st.markdown("""
     - Upload a short `.wav` file or use your mic.
@@ -46,7 +49,7 @@ with st.expander("🧠 How does this work?"):
     - Results update in real-time for microphone input.
     """)
 
-# Class Definitions
+# 🎭 Class Definitions
 ALL_CLASSES = {
     "Fire alarm": "🔥",
     "Buzzer": "🛎️",
@@ -58,7 +61,7 @@ ALL_CLASSES = {
     "Lawn mower": "🚜"
 }
 
-# Filter Option
+# 🎚️ Filter Option
 sound_type = st.radio("🎚️ Filter Sound Types", ["All", "Alarm", "Noise"], horizontal=True)
 if sound_type == "Alarm":
     CLASSES = ["Fire alarm", "Buzzer", "Smoke detector", "Timer alarm"]
@@ -67,7 +70,7 @@ elif sound_type == "Noise":
 else:
     CLASSES = list(ALL_CLASSES.keys())
 
-# Dummy Model
+# 🧠 Dummy Model for Demo
 def dummy_train_model():
     X = np.random.rand(len(CLASSES)*20, 26)
     y = np.repeat(CLASSES, 20)
@@ -77,17 +80,17 @@ def dummy_train_model():
 
 model = dummy_train_model()
 
-# Feature Extraction
+# 🧪 Feature Extraction
 def extract_features(y, sr):
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     chroma = librosa.feature.chroma_stft(y=y, sr=sr)
     rms = librosa.feature.rms(y=y)
     return np.hstack([np.mean(mfccs, axis=1), np.mean(chroma, axis=1), np.mean(rms)])
 
-# Tabs
+# 📂 Tabs
 tab1, tab2 = st.tabs(["📂 Upload File", "🎤 Microphone"])
 
-# Upload Tab
+# 📂 Upload Tab
 with tab1:
     uploaded_file = st.file_uploader("Upload a WAV file", type=["wav"])
     if uploaded_file:
@@ -103,11 +106,11 @@ with tab1:
             else:
                 st.error("⚠️ Feature size mismatch.")
 
-# Live Mic Tab
+# 🎤 Live Mic Tab
 with tab2:
     st.markdown("### 🎙️ Speak into your mic")
     st.caption("Allow mic permissions in your browser.")
-    
+
     if "live_prediction" not in st.session_state:
         st.session_state["live_prediction"] = "Waiting..."
 
@@ -133,11 +136,14 @@ with tab2:
 
     st.info(f"🔔 Real-time: **{ALL_CLASSES.get(st.session_state['live_prediction'], '')} {st.session_state['live_prediction']}**")
 
-# Sound Class Legend
+# 📘 Sound Class Legend
 with st.expander("📘 Sound Labels Legend"):
     for name, emoji in ALL_CLASSES.items():
         st.markdown(f"- {emoji} **{name}**")
 
-# Footer
+# 📍 Footer
 st.markdown("---")
 st.caption("🔧 Built with Streamlit · Demo classifier · UI enhanced for interactivity.")
+
+# 🔚 Close the container div
+st.markdown("</div>", unsafe_allow_html=True)

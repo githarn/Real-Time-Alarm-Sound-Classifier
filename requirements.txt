@@ -5,4 +5,4 @@ streamlit-webrtc
 matplotlib
 colormaps
 seaborn
-pip install tensorflow
+tensorflow

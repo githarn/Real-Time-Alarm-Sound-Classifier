@@ -34,7 +34,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.image("icon.png")
 # 🔊 Header
 st.markdown(f"<h1 style='text-align:center;'>🔊 Real-Time Alarm Sound Classifier</h1>", unsafe_allow_html=True)
 
